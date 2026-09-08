@@ -1,0 +1,17 @@
+name: chief-of-staff
+id: chief-of-staff
+version: 0.1.0
+description: >-
+  Fan-out command center pane for Hermes Desktop. Live subagent worker cards
+  (streaming thinking/tool/output), per-worker steer + interrupt, and
+  orchestrator session model/reasoning control — the desktop UI for the
+  lean6sigma / JIT-handoff orchestration doctrine. Observes + steers +
+  configures; never auto-spawns anything.
+author: Halakukhan (Team6)
+license: MIT
+homepage: https://github.com/ahrazzle/hermes-chief-of-staff
+tags:
+  - multi-agent
+  - orchestration
+  - subagents
+  - delegation

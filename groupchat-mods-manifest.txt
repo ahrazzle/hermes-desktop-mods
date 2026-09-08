@@ -1,0 +1,89 @@
+Team6 desktop mods — pre-update baseline manifest (2026-08-29, before user-initiated Hermes update)
+====================================================================================================
+Purpose: verify/reapply the two local mods after the app update replaces the renderer bundle.
+If the update changes the minified shape, the patchers exit 3 (ALERT) and anchors must be
+re-derived from the refreshed source tree before re-patching.
+
+CURRENT STATE (pre-update, all patched & verified)
+--------------------------------------------------
+Bundle:            ~/.hermes/hermes-agent/apps/desktop/release/mac-arm64/Hermes.app/Contents/Resources/app.asar.unpacked/dist/assets/index-Dh-pjnId.js
+Bundle size:       2,930,078 bytes
+Bundle sha256:     35daf94a933a6fb98809ad5099b8a9fe12d248f9e46151a6eec7efddf9d35b54
+Slash marker:      __GSPATCH x1, anchor 'let s=r||Pve();' x1, 'let drive=()=>' x1
+Caps anchors:      's=`settled`;try{for(' x1 (patched 9999 sites)
+
+PRISTINE BACKUP (restore source if bundle needs manual rebuild)
+---------------------------------------------------------------
+Bundle backup:     index-Dh-pjnId.js.pre-group-slash.bak (same dir)
+Backup size:       2,928,119 bytes
+Backup sha256:     7c0fac2ccaec2415b2d5cb70607e06b6e727174c7cc8b8ae7feba78a51747827
+Difference = 1,959 bytes = the injected slash snippet (rev 5).
+
+PATCHERS (idempotent; markers prevent double-apply)
+---------------------------------------------------
+~/.hermes/scripts/patch-groupchat-caps.py   sha 7ce70e2a2fd0aacce7811ad085694de44dc9f21b0284d625f7643e1d37475ee7
+~/.hermes/scripts/patch-groupchat-slash.py  sha 87f143439f1eabc313fa02c66d08d7788f318a548cda32ac4736437ae3d11502
+
+WATCHDOG (automatic reapply, login + hourly)
+--------------------------------------------
+launchctl: com.team6.caps-watchdog loaded (pid 0 = not running now; fires on schedule)
+Script:    ~/.hermes/scripts/team6-caps-watchdog.sh  (runs BOTH patchers, re-signs if either patches)
+Plist:     ~/Library/LaunchAgents/com.team6.caps-watchdog.plist
+Log:       ~/.hermes/logs/team6-caps-watchdog.log   ALERT file: ~/.hermes/logs/team6-caps-watchdog.ALERT
+
+REAPPLY PROCEDURE (when user returns post-update)
+-------------------------------------------------
+1. bash ~/.hermes/scripts/team6-caps-watchdog.sh   (idempotent; patches + re-signs; rc=3 => shape changed)
+2. Check markers on the NEW bundle (glob index-*.js):
+   grep -c __GSPATCH <bundle>   -> expect 1
+   grep -c 's=`settled`;try{for(' <bundle> -> expect 1 (or the patched 9999 form)
+   codesign --verify --deep --strict Hermes.app
+3. If rc=3 / markers missing: re-derive anchors from refreshed source:
+   - Slash: apps/desktop/src/plugins/hermes-bots/group-rounds.ts sendToGroupChat (anchor: target = thread || mintGroupThreadId())
+   - Caps:  apps/desktop/src/plugins/hermes-bots/group-chat.ts GROUP_CHAT_MAX_ROUNDS/MESSAGES/CONTINUATIONS
+   Update both patchers' anchors, re-run.
+4. Source-tree quirk: `hermes update` deletes apps/desktop/src/plugins/accent/plugin.js and
+   kanban/plugin.js (tracked at HEAD) -> git restore apps/desktop/src/plugins/ after update.
+5. Codesign after any patch: codesign --force --deep --sign - Hermes.app && codesign --verify --deep --strict
+
+POST-UPDATE RE-DERIVATION LOG (2026-08-30, index-CkH99u3C.js)
+--------------------------------------------------------------
+- Caps patcher: anchors still matched, auto-reapplied by watchdog (rc=0).
+- Slash patcher: old anchor `let s=r||Pve();` MISSING (rc=3, ALERT raised).
+  Re-derived from new bundle: sendToGroupChat = `function Lye`, anchor
+  `let s=r||Bve();`. All reference names changed (old -> new):
+  append Sb->vb, $groupChats Zy->Hy, update xb->_b, activity Pb->zb,
+  driver Wye->Fye, mint Pve->Bve, memberKey wb->Sb, durableMembers Hve->kb.
+  Patcher updated with new anchor + remapped names; applied, syntax-checked,
+  re-signed, verified (marker x1, drive() present, Lye parses).
+- Patched bundle sha256: 2079783f02802d967cefb748bab489267fcf57d613dcfa703933edcc4c479c7d
+- Old pristine backup (index-Dh-pjnId.js.pre-group-slash.bak) retained.
+
+POST-UPDATE RE-DERIVATION LOG (2026-08-31, index-DU3kXw10.js)
+--------------------------------------------------------------
+- Update v0.20.6 -> v0.21.0 (main @ 8dbf07e950) rebuilt the renderer bundle
+  (index-CkH99u3C.js -> index-DU3kXw10.js). Caps patcher anchors matched
+  structurally, auto-reapplied by watchdog (rc=0, sites [1..6]). Slash
+  patcher anchor `let s=r||Bve();` MISSING (rc=3, ALERT raised).
+- Re-derived from new bundle: sendToGroupChat = `Qye` (was `Lye`), anchor
+  `let s=r||Lve();`. Reference remap (old bundle -> new bundle):
+  appendGroupChatEntry vb->Cb, recordGroupActivity zb->Fb, $groupChats Hy->Qy,
+  updateGroupChat _b->Sb, runGroupChatRounds Fye->Xye, groupMemberKey Sb->Tb,
+  durableGroupChatMembers kb->Gve, mintGroupThreadId Bve->Lve, host q (unchanged,
+  module-scope SDK). NOTE the role shuffle: updateGroupChat is now `Sb`
+  (was `_b`), groupMemberKey is now `Tb` (was `Sb`).
+- Patcher updated with new anchor + remapped names; applied, syntax-checked
+  (node --check on extracted Qye), re-signed (codesign force deep sign),
+  verified (marker x1, Lve anchor, Qye parses, caps 9999 x1).
+- Config.yaml corruption (updater bug): three profiles (azaraki, kodekoot,
+  sheikh-al-jabr) had their `plugins:` section mangled into an invalid
+  list+dict hybrid (`- petdex-desktop` bare list item followed by
+  `enabled:`/`disabled:`/`entries:` mapping keys) -> YAML parse failure,
+  whole config fell back to defaults. Fixed by moving petdex-desktop into
+  `enabled:` (canonical dict shape per config_migrations.py). All three
+  validate clean through hermes venv load_config; model/provider/fallback
+  intact; no api_key overrides. .corrupt.20260831-171034.bak copies retained.
+- Patched bundle sha256 (index-DU3kXw10.js): 44fe3b0466eb3c3b2645d5989425f300873628fca42d58c015e279d529196177 (BEFORE slash+resign; caps already in)
+- Old pristine backups retained.
+
+SOP: mct6/OPERATIONS/desktop-overrides.md (rev 6)
