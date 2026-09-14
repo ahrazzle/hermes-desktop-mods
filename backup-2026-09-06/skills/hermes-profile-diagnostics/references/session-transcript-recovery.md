@@ -44,7 +44,7 @@ sqlite3 ~/.hermes/profiles/<name>/state.db "UPDATE sessions SET hidden=0 WHERE h
 ```python
 import sqlite3, json, os
 
-profile_dir = "/Users/kethuda/.hermes/profiles/<name>"
+profile_dir = "~/.hermes/profiles/<name>"
 db_path = os.path.join(profile_dir, "state.db")
 sessions_dir = os.path.join(profile_dir, "sessions")
 os.makedirs(sessions_dir, exist_ok=True)

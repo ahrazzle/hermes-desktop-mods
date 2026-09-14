@@ -26,7 +26,7 @@ metadata:
 
 ## Prerequisites
 
-- Eldunari exist at `/Users/kethuda/.hermes/eldunari/`
+- Eldunari exist at `~/.hermes/eldunari/`
 - Heartbeat script is operational (`python3 scripts/heartbeat.py`)
 - `find-links.py` script exists for orphan detection
 
@@ -65,7 +65,7 @@ Trim by removing:
 ACCESS.md says "ideally under 100 lines." Check all 6 ANIMAs:
 
 ```bash
-cd /Users/kethuda/.hermes/eldunari && wc -l anima/*/ANIMA.md | sort -rn
+cd ~/.hermes/eldunari && wc -l anima/*/ANIMA.md | sort -rn
 ```
 
 If any ANIMA.md > 100 lines:
