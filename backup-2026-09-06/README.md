@@ -6,7 +6,7 @@ per the runbook below.
 
 ## Why this exists
 
-Our installed Hermes source lives in `/Users/kethuda/.hermes/hermes-agent`
+Our installed Hermes source lives in `~/.hermes/hermes-agent`
 as a git checkout. A `hermes update` re-checks out that directory from
 `origin/main` (NousResearch/hermes-agent), which **overwrites every local
 change in that tree**. Our customizations sit on top of the
@@ -44,9 +44,9 @@ directories upstream were unchanged — only the files WE customized overlap.
 1. Confirm the update is done and `hermes --version` shows the new build.
 2. Source files (`hermes-source-customization/`): the 68 files need to be
    re-applied on top of the new tree. Simplest: copy each file back over the
-   updated `/Users/kethuda/.hermes/hermes-agent/`. If the update applied a
+   updated `~/.hermes/hermes-agent/`. If the update applied a
    fix that overlaps one of our files, review the merge first.
-3. `user-config.yaml`: copy back to `/Users/kethuda/.hermes/config.yaml`
+3. `user-config.yaml`: copy back to `~/.hermes/config.yaml`
    only if it was reset. (It normally survives.)
 4. Plugins/desktop-plugins/skills: copy each dir back to its `~/.hermes`
    location only if missing. They normally survive.

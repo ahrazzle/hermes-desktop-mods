@@ -3,7 +3,7 @@ model:
     img-free: ollama/stable-diffusion
   provider: local
   default: ornith-1.5-35b-a3b
-  base_url: http://127.0.0.1:8080/v1
+  base_url: http://127.0.0.1:<port>/v1
   api_mode: chat_completions
 providers:
   stealth-ox-alpha:
@@ -130,7 +130,7 @@ providers:
     name: Empero Free
     base_url: https://free.empero.org/v1
     model: Qwen/Qwen3.8-Flash-Next-FP8
-    api_key: free
+    api_key: <your-api-key>
   openrouter:
     name: OpenRouter
     base_url: https://openrouter.ai/api/v1
@@ -148,7 +148,7 @@ providers:
         sort: price
   local:
     name: local
-    base_url: http://127.0.0.1:8080/v1
+    base_url: http://127.0.0.1:<port>/v1
     model: ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF:IQ2_S
     discover_models: true
     models:
@@ -494,16 +494,16 @@ platforms:
     enabled: false
     home_channel:
       platform: whatsapp
-      chat_id: 275462072881175@lid
-      name: Ahraz
-      user_id: 275462072881175@lid
+      chat_id: <your-chat-id>@lid
+      name: <your-name>
+      user_id: <your-user-id>@lid
     channel_overrides:
-      16474477806@lid:
+      <channel-id>@lid:
         model: deepseek/deepseek-v4-flash-latest
         provider: nous
 custom_providers:
-  - name: Local (localhost:8080)
-    base_url: http://localhost:8080/v1
+  - name: Local
+    base_url: http://localhost:<port>/v1
     model: Qwen3.6-35B-A3B-Q8_0
     models:
       Qwen3.6-35B-A3B-Q8_0: {}

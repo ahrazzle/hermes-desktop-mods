@@ -6,16 +6,13 @@
     <string>com.team6.caps-watchdog</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/bin/bash</string>
-        <string>/Users/kethuda/.hermes/scripts/team6-caps-watchdog.sh</string>
+        <string>/bin/sh</string>
+        <string>-c</string>
+        <string>exec "$HOME/.hermes/scripts/team6-caps-watchdog.sh" >> "$HOME/.hermes/logs/team6-caps-watchdog.out" 2>> "$HOME/.hermes/logs/team6-caps-watchdog.err"</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>StartInterval</key>
     <integer>3600</integer>
-    <key>StandardOutPath</key>
-    <string>/Users/kethuda/.hermes/logs/team6-caps-watchdog.out</string>
-    <key>StandardErrorPath</key>
-    <string>/Users/kethuda/.hermes/logs/team6-caps-watchdog.err</string>
 </dict>
 </plist>
