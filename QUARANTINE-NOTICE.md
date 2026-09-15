@@ -1,33 +1,44 @@
-# Quarantined: `backup-2026-09-06/` removed from the public tree
+# Quarantined: `backup-2026-09-06/` removed from this branch
 
-The directory `backup-2026-09-06/` was removed from the repository on this
-branch. It was a dated snapshot of a single machine's Hermes install: a bulk
-copy of upstream source (a vendored `hermes-agent` checkout) plus local
-config, desktop plugins, and skills.
+The directory `backup-2026-09-06/` is **not present on this branch**. It was a
+dated snapshot of a single machine's Hermes install: a bulk copy of upstream
+`hermes-agent` source plus local config, desktop plugins, skills and contact
+details.
 
-## Why it was removed
+## Open licence question
 
-- **Licensing.** It packages a large amount of third-party (upstream) source
-  whose license and redistribution status for this snapshot has not been
-  resolved. Publishing it is a licensing question, not a branding one, and it
-  is raised in the pull request body.
-- **Instance material.** It also carries machine-specific configuration and
-  skills that do not belong on a public surface.
+The snapshot bulk-copies third-party upstream source whose licence and
+redistribution status for this repository has **not been resolved**. Until that
+is settled the material must not be published — or republished — here. This is
+the reason for its removal, and it is an **open item** that also blocks any
+future re-inclusion of the directory.
+
+## State of this branch
+
+- `backup-2026-09-06/` is absent from the branch tree
+  (`git ls-tree -r <branch>` lists no such path).
+- The files were never committed on this branch, so there is nothing to rewrite
+  here.
+
+## Where the snapshot still exists — and must be handled elsewhere
+
+Removing files from a branch makes them appear as **deletions** in this pull
+request's diff against `main`, and they remain in `main`'s history. This branch
+therefore does **not**, by itself, take the material out of public view:
+
+- `main` still contains the snapshot.
+- This PR's diff renders the removed content.
+
+Closing the exposure requires action on `main` — a history rewrite, or
+repository recreation/rotation. That is deliberately outside the scope of this
+branch and is flagged in the pull request body.
 
 ## Reversibility
 
-Nothing was deleted from `main`. This is a branch-only removal and is fully
-reversible:
+The snapshot is preserved outside the repository tree (maintainer's local
+quarantine), and its full contents remain in git history. If the licence
+question is ever resolved, recover it with:
 
-- The snapshot is preserved outside the repository tree, in the maintainer's
-  local quarantine (not tracked, not published).
-- Its full contents remain in git history. Recover with either:
+    git show <commit>^:backup-2026-09-06/README.md
 
-      git show <commit>^:backup-2026-09-06/README.md
-
-  or check the directory out from the commit that still contained it:
-
-      git checkout <commit>^ -- backup-2026-09-06
-
-The directory should not return to the public tree until the license question
-is resolved.
+    git checkout <commit>^ -- backup-2026-09-06
