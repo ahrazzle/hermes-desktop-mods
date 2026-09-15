@@ -1,4 +1,4 @@
-Team6 desktop mods — pre-update baseline manifest (2026-08-29, before user-initiated Hermes update)
+Protean desktop mods — pre-update baseline manifest (2026-08-29, before user-initiated Hermes update)
 ====================================================================================================
 Purpose: verify/reapply the two local mods after the app update replaces the renderer bundle.
 If the update changes the minified shape, the patchers exit 3 (ALERT) and anchors must be
@@ -26,14 +26,14 @@ PATCHERS (idempotent; markers prevent double-apply)
 
 WATCHDOG (automatic reapply, login + hourly)
 --------------------------------------------
-launchctl: com.team6.caps-watchdog loaded (pid 0 = not running now; fires on schedule)
-Script:    ~/.hermes/scripts/team6-caps-watchdog.sh  (runs BOTH patchers, re-signs if either patches)
-Plist:     ~/Library/LaunchAgents/com.team6.caps-watchdog.plist
-Log:       ~/.hermes/logs/team6-caps-watchdog.log   ALERT file: ~/.hermes/logs/team6-caps-watchdog.ALERT
+launchctl: com.protean.caps-watchdog loaded (pid 0 = not running now; fires on schedule)
+Script:    ~/.hermes/scripts/protean-caps-watchdog.sh  (runs BOTH patchers, re-signs if either patches)
+Plist:     ~/Library/LaunchAgents/com.protean.caps-watchdog.plist
+Log:       ~/.hermes/logs/protean-caps-watchdog.log   ALERT file: ~/.hermes/logs/protean-caps-watchdog.ALERT
 
 REAPPLY PROCEDURE (when user returns post-update)
 -------------------------------------------------
-1. bash ~/.hermes/scripts/team6-caps-watchdog.sh   (idempotent; patches + re-signs; rc=3 => shape changed)
+1. bash ~/.hermes/scripts/protean-caps-watchdog.sh   (idempotent; patches + re-signs; rc=3 => shape changed)
 2. Check markers on the NEW bundle (glob index-*.js):
    grep -c __GSPATCH <bundle>   -> expect 1
    grep -c 's=`settled`;try{for(' <bundle> -> expect 1 (or the patched 9999 form)
@@ -75,15 +75,15 @@ POST-UPDATE RE-DERIVATION LOG (2026-08-31, index-DU3kXw10.js)
 - Patcher updated with new anchor + remapped names; applied, syntax-checked
   (node --check on extracted Qye), re-signed (codesign force deep sign),
   verified (marker x1, Lve anchor, Qye parses, caps 9999 x1).
-- Config.yaml corruption (updater bug): three profiles (azaraki, kodekoot,
-  sheikh-al-jabr) had their `plugins:` section mangled into an invalid
+- Config.yaml corruption (updater bug): three profiles (Da Vinci, Mozi,
+  Sina) had their `plugins:` section mangled into an invalid
   list+dict hybrid (`- petdex-desktop` bare list item followed by
   `enabled:`/`disabled:`/`entries:` mapping keys) -> YAML parse failure,
   whole config fell back to defaults. Fixed by moving petdex-desktop into
   `enabled:` (canonical dict shape per config_migrations.py). All three
-  validate clean through hermes venv load_config; model/provider/fallback
+  validate clean through the hermes venv load_config; model/provider/fallback
   intact; no api_key overrides. .corrupt.20260831-171034.bak copies retained.
 - Patched bundle sha256 (index-DU3kXw10.js): 44fe3b0466eb3c3b2645d5989425f300873628fca42d58c015e279d529196177 (BEFORE slash+resign; caps already in)
 - Old pristine backups retained.
 
-SOP: mct6/OPERATIONS/desktop-overrides.md (rev 6)
+SOP: desktop-overrides.md (rev 6; this repo)

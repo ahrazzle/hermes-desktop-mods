@@ -2,7 +2,7 @@
 """
 patch-groupchat-slash.py — group-room slash commands for the Hermes desktop app.
 
-Local Team6 patch (no upstream equivalent): the group composer bypasses the
+Local Protean Team patch (no upstream equivalent): the group composer bypasses the
 shared slash dispatcher, so "/cmd" typed in a room fans out to every member
 session as literal LLM text. This patches the built renderer bundle so
 sendToGroupChat intercepts command-shaped input:

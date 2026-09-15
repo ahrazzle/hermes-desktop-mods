@@ -1,14 +1,14 @@
-# Team6 Desktop Overrides — Durable Mechanism (rev 6, 2026-08-30)
+# Protean Desktop Overrides — Durable Mechanism (rev 6, 2026-08-30)
 
-**Rev 6 change (per Halakukhan):** post-update re-derivation. The 2026-08-30
+**Rev 6 change (per Shaka):** post-update re-derivation. The 2026-08-30
 update rebuilt the bundle (index-Dh-pjnId.js → index-CkH99u3C.js); caps anchors
 matched and were auto-reapplied by the watchdog; the slash anchor did not
 (rc=3, ALERT). Re-derived from the new bundle: sendToGroupChat = `function Lye`,
 anchor `let s=r||Bve();`, names remapped (append Sb→vb, $groupChats Zy→Hy,
 update xb→_b, activity Pb→zb, driver Wye→Fye, mint Pve→Bve, memberKey wb→Sb,
-durableMembers Hve→kb). Full log in `~/.hermes/scripts/groupchat-mods-manifest.txt`.
+durableMembers Hve→kb). Full log in `groupchat-mods-manifest.txt`.
 
-**Rev 5 change (per Halakukhan):** corrected the group-slash dispatch semantics.
+**Rev 5 change (per Shaka):** corrected the group-slash dispatch semantics.
 Rev 4 dispatched every slash command and posted the result — skill/send-type
 commands (e.g. `/project-handoff-takeover`) returned scaffolding (`type:'skill'`)
 that got rendered as a literal "Slash" entry while the room sat still. Now:
@@ -17,12 +17,12 @@ error results fall through to the round driver (`Fye`/`Wye`), so the room member
 receive the command text and act on it. This is what "slash = whole group chat"
 means for skill commands.
 
-**Rev 4 change (per Halakukhan):** group-room slash commands (local feature, no
+**Rev 4 change (per Shaka):** group-room slash commands (local feature, no
 upstream equivalent yet). New patcher `patch-groupchat-slash.py` wired into the
 same watchdog; re-signs if either patcher lands a patch. Same exit contract
 (0 = present, 1 = error, 3 = shape changed → ALERT).
 
-**Rev 3 change (per Halakukhan):** watchdog now has a negative-check alert path. A bundle that matches NEITHER the upstream 3/10/2 pattern NOR the applied 999/999/999 pattern is treated as a shape change the watchdog cannot verify — it writes `~/.hermes/logs/team6-caps-watchdog.ALERT`, logs an ALERT line, fires a macOS notification, and exits 1. No-match is no longer a silent no-op.
+**Rev 3 change (per Shaka):** watchdog now has a negative-check alert path. A bundle that matches NEITHER the upstream 3/10/2 pattern NOR the applied 999/999/999 pattern is treated as a shape change the watchdog cannot verify — it writes `~/.hermes/logs/protean-caps-watchdog.ALERT`, logs an ALERT line, fires a macOS notification, and exits 1. No-match is no longer a silent no-op.
 
 ## What was patched
 
@@ -37,8 +37,8 @@ same watchdog; re-signs if either patcher lands a patch. Same exit contract
 
 ## Durable mechanism: launchd watchdog (AUTOMATIC)
 
-`~/Library/LaunchAgents/com.team6.caps-watchdog.plist` → runs
-`~/.hermes/scripts/team6-caps-watchdog.sh` at login + every hour:
+`~/Library/LaunchAgents/com.protean.caps-watchdog.plist` → runs
+`~/.hermes/scripts/protean-caps-watchdog.sh` at login + every hour:
 
 1. Scans `app.asar.unpacked/dist/assets/index-*.js` for the upstream 3/10/2 value pattern.
 2. If found (an update clobbered the override) → patches to 999/999/999, clears any stale ALERT, re-signs adhoc, verifies signature.
@@ -46,7 +46,7 @@ same watchdog; re-signs if either patcher lands a patch. Same exit contract
 4. If a bundle exists but matches NEITHER pattern → ALERT (canary file + log + notification + exit 1) — build shape changed, caps unverified. This is the negative check: no-match is NOT success.
 
 **Proven 2026-08-27:** simulated clobber → watchdog re-patched, re-signed, verified in ~1s.
-Log: `~/.hermes/logs/team6-caps-watchdog.log`
+Log: `~/.hermes/logs/protean-caps-watchdog.log`
 
 ## Group-room slash commands (rev 4, local feature)
 
@@ -69,7 +69,7 @@ Semantics (injected into `sendToGroupChat` — the single user-send choke point 
 - On `main` with diverged history → `reset --hard origin/<branch>` (kills local commits).
 - On a custom branch → auto-switch to target branch (commits kept on the branch but not built).
 - No update-related hook event exists in the hooks system.
-- => The watchdog is the only reliable re-apply path on this machine. An upstream PR making caps configurable would be the true architectural fix (azaraki's point) — revisit if/when upstream accepts config-driven group chat limits.
+- => The watchdog is the only reliable re-apply path on this machine. An upstream PR making caps configurable would be the true architectural fix (Da Vinci's point) — revisit if/when upstream accepts config-driven group chat limits.
 
 ## Model/provider standard (nous / deepseek-v4-flash-0731)
 
@@ -81,6 +81,6 @@ Stale VeniceAI `key_env` lives only inside provider definitions (dormant) — do
 ## Manual re-apply (if watchdog ever fails)
 
 ```bash
-bash ~/.hermes/scripts/team6-caps-watchdog.sh
+bash ~/.hermes/scripts/protean-caps-watchdog.sh
 codesign --force --deep --sign - ~/.hermes/hermes-agent/apps/desktop/release/mac-arm64/Hermes.app
 ```
