@@ -1,5 +1,5 @@
 #!/bin/bash
-# Team6 caps watchdog — re-applies the group-chat cap override after any
+# Protean caps watchdog — re-applies the group-chat cap override after any
 # Hermes desktop app update clobbers it (updates replace the renderer bundle).
 # Installed as a launchd LaunchAgent; runs at login + hourly.
 #
@@ -11,7 +11,7 @@
 # patcher detects the cap sites by structural anchor (stable against minifier
 # variable renames) and reports rc=3 when no cap pattern matches at all.
 #
-# Failure mode (kept per Halakukhan): rc=3 (no cap pattern matched) means the
+# Failure mode (kept per Shaka): rc=3 (no cap pattern matched) means the
 # build shape changed beyond recognition and the caps are UNVERIFIED — that is
 # an ALERT (canary file + log + macOS notification), not a no-op.
 set -u
@@ -20,8 +20,8 @@ APP_DIR="$HOME/.hermes/hermes-agent/apps/desktop/release/mac-arm64/Hermes.app"
 ASSETS_DIR="$APP_DIR/Contents/Resources/app.asar.unpacked/dist/assets"
 PATCHER="$HOME/.hermes/scripts/patch-groupchat-caps.py"
 SLASH_PATCHER="$HOME/.hermes/scripts/patch-groupchat-slash.py"
-LOG="$HOME/.hermes/logs/team6-caps-watchdog.log"
-ALERT_FILE="$HOME/.hermes/logs/team6-caps-watchdog.ALERT"
+LOG="$HOME/.hermes/logs/protean-caps-watchdog.log"
+ALERT_FILE="$HOME/.hermes/logs/protean-caps-watchdog.ALERT"
 
 log() { printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >> "$LOG"; }
 
@@ -29,7 +29,7 @@ alert() {
   # Durable signal: canary file + log line. Best-effort macOS notification.
   printf '%s ALERT %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >> "$LOG"
   printf '%s\n' "$*" > "$ALERT_FILE"
-  osascript -e "display notification \"$1\" with title \"Team6 caps watchdog\"" 2>/dev/null || true
+  osascript -e "display notification \"$1\" with title \"Protean caps watchdog\"" 2>/dev/null || true
 }
 
 if [ ! -d "$ASSETS_DIR" ]; then

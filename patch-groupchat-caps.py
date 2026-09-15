@@ -10,7 +10,7 @@ bundle (apps/desktop/src/plugins/hermes-bots/group-chat.ts):
     GROUP_CHAT_MAX_MEMBERS       = 6   (roster size — intentionally LEFT ALONE)
 
 There is no config.yaml escape hatch for these (they are hardcoded const
-exports). The Team6 setup overrides rounds/messages/continuations to a value
+exports). The Protean Team setup overrides rounds/messages/continuations to a value
 large enough to be "effectively no cap" (9999) so long multi-agent coordination
 is never cut short, while members stays at 6 (the roster the rooms are sized
 for). The minifier (rolldown) INLINES the constants into the bundle, so they
