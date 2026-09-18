@@ -52,7 +52,7 @@ Verify markers on the new bundle (~/.hermes/hermes-agent/apps/desktop/release/
 mac-arm64/Hermes.app/Contents/Resources/app.asar.unpacked/dist/assets/index-*.js):
 
     grep -c __GSPATCH <bundle>            # expect 1
-    grep -c 's=`settled`;try{for(' <bundle> # expect 1 (or patched 9999 form)
+    grep -c '`settled`;try{for(' <bundle> # expect 1 (literal is rename-agnostic; the 9999 form sits one token later)
     codesign --verify --deep --strict Hermes.app
 
 ## Step 3 — Restore group-model-sync plugin
@@ -166,3 +166,36 @@ absence after the first watchdog run means all three are healthy.
   config.yaml ... did not find expected '-' indicator" at a plugins: block.
   Fix = the plugins section must be a mapping (enabled:/disabled:/entries:),
   never a bare `- name` list item mixed with mapping keys.
+
+## POST-UPDATE RE-DERIVATION (2026-09-18, upstream #111283, bundle index-kkaHszuX.js)
+
+- #111283 rewrote sendToGroupChat itself (per-room QUEUE, shared failedMembers
+  4th driver param), and pre-PR 6fa8518b44 added a slash-rejection guard that
+  fires BEFORE the old anchor. Both patchers ALERTED on the live bundle
+  (caps [absent×5, upstream], slash rc=3) — evidence: hazen-brief-111283.md.
+- Both patchers were rebuilt on branch mozi/111283-patcher-rewrite:
+  * SLASH: zero hardcoded minified letters — 13 structural probes discover the
+    function head, guard, anchor, queue owner, store, session-key helpers and
+    host object at runtime; every probe must hit exactly once else rc=3 with
+    no write. drive() now calls queueGroupChatDrive (the queue), never the
+    round driver; no snippet epoch bump. The upstream guard is neutralized at
+    its unique call site for attachment-free command text only (attachments
+    checked FIRST — the guard function toasts as a side effect). Member
+    sessions resolve via groupSessionKey(thread, member) with bare-key
+    fallback only for unmigrated rooms.
+  * CAPS: name-agnostic regexes (named captures + (?P=x) backrefs) spanning
+    BOTH the rounds driver and the continuation-members function; SITE 3's
+    fused increment+gate shape became a standalone `pending.length &&
+    continuations <= 2` gate in the continuation function. Cap literals are
+    capture groups matching UPSTREAM|9999 → one pattern per site for detect +
+    patch; exactly-one-match enforced; post-patch re-detect required.
+- Verified on COPIES in /tmp/dm111283-bundle (installed bundle untouched):
+  fresh apply rc=0 each, re-apply no-op rc=0, slash+caps order-independent
+  (byte-identical), node --check parses every patched variant, 27-case node
+  behavior harness on the extracted patched functions, negative tests
+  (shape-shift / duplicated site / pre-#111283 tail) all exit 3 without
+  writing. See mozi-receipt.md.
+- ACTION OUTSTANDING (deploy stage, not this branch): copy the two new
+  patchers to ~/.hermes/scripts, run the watchdog once against the live
+  bundle (patches + re-signs), confirm ALERT file absent. Until then the
+  live app stays UNPATCHED and the watchdog keeps alerting — by design.

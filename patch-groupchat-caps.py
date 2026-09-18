@@ -3,33 +3,44 @@
 patch-groupchat-caps.py — detect and patch Hermes desktop group-chat caps.
 
 The desktop app hardcodes group-chat coordination limits in the built renderer
-bundle (apps/desktop/src/plugins/hermes-bots/group-chat.ts):
+bundle (source: apps/desktop/src/plugins/hermes-bots/group-chat.ts):
     GROUP_CHAT_MAX_ROUNDS        = 3   (round-robin rounds per user send)
     GROUP_CHAT_MAX_MESSAGES      = 10  (room messages posted per user send)
     GROUP_CHAT_MAX_CONTINUATIONS = 2   (extra rounds to answer unresolved @mentions)
     GROUP_CHAT_MAX_MEMBERS       = 6   (roster size — intentionally LEFT ALONE)
 
 There is no config.yaml escape hatch for these (they are hardcoded const
-exports). The Protean Team setup overrides rounds/messages/continuations to a value
-large enough to be "effectively no cap" (9999) so long multi-agent coordination
-is never cut short, while members stays at 6 (the roster the rooms are sized
-for). The minifier (rolldown) INLINES the constants into the bundle, so they
-appear as literal 3 / 10 / 2 in a handful of context-anchored sites rather than
-one var declaration — the old watchdog regex (`var A=3,B=10,C=2,D=6;`) stopped
-matching when the bundler changed shape.
+exports). The Protean Team setup overrides rounds/messages/continuations to a
+value large enough to be "effectively no cap" (9999) so long multi-agent
+coordination is never cut short, while members stays at 6. The minifier
+(rolldown) INLINES the constants, so they appear as literal 3 / 10 / 2 in a
+handful of context-anchored sites rather than one var declaration.
 
-This script:
-  1. Locates the current renderer bundle (assets/index-*.js).
-  2. Detects the group-chat cap sites by their surrounding STRUCTURAL anchor
-     (stable against minifier variable renames, which are single letters that
-     change every build).
-  3. If the upstream 3/10/2 defaults are present, patches them to 9999/9999/9999
-     (members stays 6). If the override is already applied, it is a no-op.
-  4. If NO cap pattern matches at all, exits 3 (build shape changed beyond
-     recognition) so the caller can ALERT instead of silently assuming.
+RE-DERIVED 2026-09-18 for the post-#111283 bundle (index-kkaHszuX.js; verdict
+table: hazen-brief-111283.md §5). The constants themselves never moved, but
+the round-loop restructure split the sites across TWO functions:
+  - runGroupChatRounds (bundle pMe):    SITE 1 (rounds loop), SITE 2 (msg cap
+    in member loop), SITE 6 (final close after continuations)
+  - runGroupContinuationMembers (aMe):  SITE 3 (continuation gate — the old
+    fused `if(o+=1,r.length&&o<=2)` shape is GONE: the increment split out to
+    the driver with no cap literal; the gate `pending.length && continuations
+    <= MAX_CONTINUATIONS` now lives in the continuation function), SITE 4 (msg
+    cap before continuation loop), SITE 5 (combined msg+cont break)
+The OLD regexes pinned minifier LETTERS (hardcoded `s=`, `i()`, `r.length`)
+despite their rename-tolerant docstring and ALERTed (rc=3, 5/6 absent) on the
+rebuild. Every letter position in the new regexes is a named capture, with
+`(?P=x)` backreferences where the same identifier must repeat — so a rename
+cannot alias two roles. Each cap literal is itself a capture group matching
+`<upstream>|<TARGET>`, which gives state detection and patching from ONE
+pattern per site (no string-mangling of regexes).
+
+Detection contract: every site must match EXACTLY ONCE (upstream or patched
+form). 0 = absent, >1 = ambiguous — either way exits 3 so the caller ALERTS
+instead of silently mis-patching. After writing, the patcher re-detects and
+requires all sites patched.
 
 Exit codes: 0 = override present (patched or already applied); 1 = error;
-3 = no cap pattern matched (shape changed, needs manual review).
+3 = shape changed / ambiguous (needs manual review).
 
 Usage: patch-groupchat-caps.py [bundle_path]
 """
@@ -40,74 +51,98 @@ import sys
 
 TARGET = 9999  # effectively-unlimited; large enough no real coordination hits it
 
-# ── Cap sites. Each regex captures the minified var name(s) with (\w+) so a
-#    bundler variable rename still matches; the surrounding code is the stable
-#    anchor (tied to the source, not to the minified name). `up_literals` are
-#    the numeric cap literals present in the upstream regex, in replace order.
-#    Replacement templates use sentinels __V0__/__V1__ (captured var names) and
-#    __T__ (TARGET) with .replace() — braces stay literal, no format escaping.
-# ────────────────────────────────────────────────────────────────────────────
+# Each site: a structural regex with named captures for every minified
+# identifier and (?P<capN>UPSTREAM|{TARGET}) for each cap literal, plus the
+# upstream literal per cap group. {TARGET} is filled at use (never str.format
+# — the patterns contain literal regex braces).
 SITES = [
-    # SITE 1 — rounds loop:  s=`settled`;try{for(let c=0;c<3;c++){for(let r of t){
+    # SITE 1 — rounds loop (GROUP_CHAT_MAX_ROUNDS) in runGroupChatRounds:
+    #   source ~ group-rounds.ts: `exitKind='settled'; try { for (round<GROUP_CHAT_MAX_ROUNDS)`
+    #   bundle  `u=`settled`;try{for(let r=0;r<3;r++){for(let`
     {
-        "regex": r"s=`settled`;try\{for\(let (\w+)=0;\1<3;\1\+\+\)\{for\(let",
-        "up_literals": ["3"],
-        "tpl": "s=`settled`;try{for(let __V0__=0;__V0__<__T__;__V0__++){for(let",
-        "ngroups": 1,
+        "name": "rounds loop",
+        "regex": r"(?P<ek>\w+)=`settled`;try\{for\(let (?P<v>\w+)=0;(?P=v)<(?P<cap1>3|{TARGET});(?P=v)\+\+\)\{for\(let",
+        "up": {"cap1": "3"},
     },
-    # SITE 2 — message cap in member loop:  if(!i()||a>=10){i()?s=`capped`
+    # SITE 2 — message cap in member loop (GROUP_CHAT_MAX_MESSAGES):
+    #   bundle  `if(!o()||c>=10){o()?u=`capped`:nj(...)`  — the (?P=cur)
+    #   backreference pins both isCurrent() calls to the same function name.
     {
-        "regex": r"!i\(\)\|\|(\w+)>=10\)\{i\(\)\?s=`capped`",
-        "up_literals": ["10"],
-        "tpl": "!i()||__V0__>=__T__){i()?s=`capped`",
-        "ngroups": 1,
+        "name": "msg cap in round loop",
+        "regex": r"if\(!(?P<cur>\w+)\(\)\|\|(?P<pos>\w+)>=(?P<cap1>10|{TARGET})\)\{(?P=cur)\(\)\?(?P<ek>\w+)=`capped`",
+        "up": {"cap1": "10"},
     },
-    # SITE 3 — continuation increment gate:  if(o+=1,r.length&&o<=2){
+    # SITE 3 — continuation gate (GROUP_CHAT_MAX_CONTINUATIONS) in
+    #   runGroupContinuationMembers (moved here by #111283; fused increment+
+    #   gate shape of the old bundle no longer exists):
+    #   bundle  `if(t.length&&n<=2){`
     {
-        "regex": r"if\((\w+)\+=1,r\.length&&\1<=2\)\{",
-        "up_literals": ["2"],
-        "tpl": "if(__V0__+=1,r.length&&__V0__<=__T__){",
-        "ngroups": 1,
+        "name": "continuation gate",
+        "regex": r"if\((?P<pend>\w+)\.length&&(?P<cont>\w+)<=(?P<cap1>2|{TARGET})\)\{",
+        "up": {"cap1": "2"},
     },
-    # SITE 4 — message cap before continuation loop:  s.length&&a<10){
+    # SITE 4 — message cap before continuation loop, in aMe
+    #   (group-round-members.ts: `citedMembers.length && posted < MAX_MESSAGES`):
+    #   bundle  `if(s.length&&r<10){`
     {
-        "regex": r"s\.length&&(\w+)<10\)\{",
-        "up_literals": ["10"],
-        "tpl": "s.length&&__V0__<__T__){",
-        "ngroups": 1,
+        "name": "msg cap before continuation loop",
+        "regex": r"if\((?P<cited>\w+)\.length&&(?P<pos>\w+)<(?P<cap1>10|{TARGET})\)\{",
+        "up": {"cap1": "10"},
     },
-    # SITE 5 — combined msg+cont inside continuation loop:  if(!i()||a>=10||o>2)break
+    # SITE 5 — combined msg+cont break, inside continuation loop
+    #   (group-round-members.ts: `!isCurrent() || posted >= MAX_MESSAGES ||
+    #   continuations > MAX_CONTINUATIONS`):
+    #   bundle  `if(!a()||r>=10||n>2)break`
     {
-        "regex": r"!i\(\)\|\|(\w+)>=10\|\|(\w+)>2\)break",
-        "up_literals": ["10", "2"],
-        "tpl": "!i()||__V0__>=__T__||__V1__>__T__)break",
-        "ngroups": 2,
+        "name": "combined msg+cont break",
+        "regex": r"if\(!(?P<cur>\w+)\(\)\|\|(?P<pos>\w+)>=(?P<cap1>10|{TARGET})\|\|(?P<cont>\w+)>(?P<cap2>2|{TARGET})\)break",
+        "up": {"cap1": "10", "cap2": "2"},
     },
-    # SITE 6 — final close:  r.length&&(o>2||a>=10)&&(s=`capped`)
+    # SITE 6 — final close after continuations, in pMe
+    #   (group-rounds.ts: `pendingKeys.length && (continuations > MAX_CONTINUATIONS
+    #   || posted >= MAX_MESSAGES)`):
+    #   bundle  `r.length&&(l>2||c>=10)&&(u=`capped`);return}`
     {
-        "regex": r"r\.length&&\((\w+)>2\|\|(\w+)>=10\)&&\(s=`capped`",
-        "up_literals": ["2", "10"],
-        "tpl": "r.length&&(__V0__>__T__||__V1__>=__T__)&&(s=`capped`",
-        "ngroups": 2,
+        "name": "final close",
+        "regex": r"(?P<pend>\w+)\.length&&\((?P<cont>\w+)>(?P<cap1>2|{TARGET})\|\|(?P<pos>\w+)>=(?P<cap2>10|{TARGET})\)&&\((?P<ek>\w+)=`capped`\)",
+        "up": {"cap1": "2", "cap2": "10"},
     },
 ]
 
 
-def patched_regex(site):
-    """Upstream regex with its cap literals replaced by TARGET -> patched detector."""
-    r = site["regex"]
-    for lit in site["up_literals"]:
-        r = r.replace(lit, str(TARGET))
-    return re.compile(r)
+def site_regex(site):
+    """Compiled site pattern with {TARGET} filled."""
+    return re.compile(site["regex"].replace("{TARGET}", str(TARGET)))
 
 
-def render(site, m):
-    out = site["tpl"].replace("__T__", str(TARGET))
-    if site["ngroups"] == 1:
-        out = out.replace("__V0__", m.group(1))
-    else:
-        out = out.replace("__V0__", m.group(1)).replace("__V1__", m.group(2))
+def detect(data):
+    """[(site, match|None, state)] where state in upstream|patched|absent|ambiguous|mixed."""
+    out = []
+    for site in SITES:
+        hits = list(site_regex(site).finditer(data))
+        if len(hits) == 0:
+            out.append((site, None, "absent"))
+        elif len(hits) > 1:
+            out.append((site, None, "ambiguous"))
+        else:
+            caps = {g: hits[0].group(g) for g in site["up"]}
+            if all(v == site["up"][g] for g, v in caps.items()):
+                state = "upstream"
+            elif all(v == str(TARGET) for g, v in caps.items()):
+                state = "patched"
+            else:
+                state = "mixed"
+            out.append((site, hits[0], state))
     return out
+
+
+def apply_site(new, m, site):
+    """Replace each not-yet-TARGET cap span with TARGET (reverse offset order)."""
+    spans = sorted((m.span(g) for g in site["up"] if m.group(g) != str(TARGET)),
+                   reverse=True)
+    for s, e in spans:
+        new = new[:s] + str(TARGET) + new[e:]
+    return new
 
 
 def find_bundle(explicit=None):
@@ -127,32 +162,35 @@ def main():
     data = open(path, encoding="utf-8").read()
     base = path.split("/")[-1]
 
-    states = []
-    for site in SITES:
-        if re.search(site["regex"], data):
-            states.append("upstream")
-        elif patched_regex(site).search(data):
-            states.append("patched")
-        else:
-            states.append("absent")
-
+    found = detect(data)
+    states = [st for _, _, st in found]
     if all(st == "patched" for st in states):
         print(f"ALREADY PATCHED ({base}) — no-op")
         return 0
-    if any(st == "absent" for st in states):
+    if any(st in ("absent", "ambiguous") for st in states):
         print(f"NO CAP PATTERN MATCHED in {base} — shape changed, caps unverified")
-        print(f"site states: {states}")
+        print(f"site states: {list(zip([s['name'] for s, _, _ in found], states))}")
         return 3
 
     new = data
     applied = []
-    for i, site in enumerate(SITES, 1):
-        m = re.search(site["regex"], new)
+    for i, (site, m, st) in enumerate(found, 1):
+        if st == "patched":
+            continue
+        if st == "mixed":
+            print(f"patch site {i}: mixed cap literals ({site['name']}) — re-anchor, abort")
+            return 1
+        m = site_regex(site).search(new)  # re-search: earlier sites shifted offsets
         if not m:
             print(f"patch site {i}: upstream pattern vanished mid-patch — abort, no write")
             return 1
-        new = new[:m.start()] + render(site, m) + new[m.end():]
-        applied.append(i)
+        new = apply_site(new, m, site)
+        applied.append(site["name"])
+
+    post = [st for _, _, st in detect(new)]
+    if not all(st == "patched" for st in post):
+        print(f"post-patch verification failed ({post}) — abort, no write")
+        return 1
 
     open(path, "w", encoding="utf-8").write(new)
     print(f"PATCHED {base} -> rounds/messages/continuations = {TARGET} "
