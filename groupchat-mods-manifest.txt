@@ -86,4 +86,32 @@ POST-UPDATE RE-DERIVATION LOG (2026-08-31, index-DU3kXw10.js)
 - Patched bundle sha256 (index-DU3kXw10.js): 44fe3b0466eb3c3b2645d5989425f300873628fca42d58c015e279d529196177 (BEFORE slash+resign; caps already in)
 - Old pristine backups retained.
 
-SOP: desktop-overrides.md (rev 6; this repo)
+POST-UPDATE RE-DERIVATION LOG (2026-09-18, post-#111283 bundle index-kkaHszuX.js, app 0.17.3)
+------------------------------------------------------------------------------------------------
+- sha256 d1319273bb7478139a19d547686bacfaf21374de6459f2b65f37f9d0da22c101. Both OLD patchers
+  reproduced the ALERT baseline on a copy (caps rc=3 [absent,absent,absent,upstream,absent,
+  absent]; slash rc=3). Evidence + name map: hazen-brief-111283.md (Stage 1, pinned @69fd61b0ef).
+- BOTH PATCHERS REWRITTEN on branch mozi/111283-patcher-rewrite (repo only — the live app
+  bundle and ~/.hermes/scripts were NOT touched; deploy is a separate stage):
+  * slash: minified names now runtime-DISCOVERED via 13 unique structural probes (no letter
+    hardcoding at all); snippet drive() calls queueGroupChatDrive (owner hMe on this build)
+    — never the round driver, no own epoch bump; upstream slash-rejection guard (oMe)
+    neutralized at its unique call site only for attachment-free command text (attachments
+    short-circuit first: the guard toasts as a side effect); thread-scoped member-session
+    lookup groupSessionKey(thread,member) `thread:<t>::<key>` with bare-key fallback gated
+    by hasThreadScopedGroupSession. rc semantics unchanged (0/1/3).
+  * caps: all six sites re-anchored name-agnostic ((?P=x) backreferences), spanning BOTH
+    runGroupChatRounds (pMe: sites 1,2,6) and runGroupContinuationMembers (aMe: sites 3,4,5
+    — SITE 3's fused increment+gate is GONE, now a standalone <=2 gate); each cap literal is
+    an (UPSTREAM|9999) capture group — detect and patch from one pattern; exactly-one match
+    enforced per site (absent or ambiguous => rc=3, zero writes); post-patch re-detect gate.
+- VERIFICATION (all on /tmp/dm111283-bundle copies of the installed bundle): caps fresh rc=0
+  (6/6 sites) + re-apply on the patched copy rc=0; slash fresh rc=0 + re-apply rc=0;
+  slash→caps and caps→slash byte-identical; node --check (ESM) parses all patched variants;
+  27-case node behavior harness on the extracted patched functions (queue-drive usage, guard
+  toast semantics incl. with-attachments rejection preserved, /etc/hosts pass-through,
+  thread-scoped + bare-key + scoped-miss session cases, default-profile path, 9999 literals,
+  __GSPATCH x1); 3 negative shape tests ALERT rc=3 with file byte-UNCHANGED. Details:
+  mozi-receipt.md.
+
+SOP: desktop-overrides.md (rev 6 + 2026-09-18 anchor update; this repo)

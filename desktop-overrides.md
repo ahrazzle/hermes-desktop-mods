@@ -51,15 +51,18 @@ Log: `~/.hermes/logs/protean-caps-watchdog.log`
 ## Group-room slash commands (rev 4, local feature)
 
 Patcher: `~/.hermes/scripts/patch-groupchat-slash.py` (idempotent, marker `__GSPATCH`).
-Anchor: `let s=r||Pve();` inside minified `sendToGroupChat` (unique; `Pve`=mintGroupThreadId).
+Anchor (re-derived 2026-09-18, post-#111283): no hardcoded minified letters — the
+patcher discovers every name at runtime from unique structural probes (sendToGroupChat
+head, `thread || mintGroupThreadId()` anchor, queue-owner tail call, session-key
+helpers). Any probe matching 0 or >1 times exits 3 (ALERT) without writing.
 
 Semantics (injected into `sendToGroupChat` — the single user-send choke point for rooms):
 
 - `/cmd` (no mention) → `command.dispatch` against the default profile's session (via `session.list`, `resolved_id||id`), result posted as a `Slash` entry in the room thread.
-- `/cmd @bot ...` → dispatch per mentioned member's session (`room.sessions[groupMemberKey(member)]`), one result entry per target. Mention tokens are stripped from the arg.
-- The command text is appended as the user's message; the thread is minted; the round driver never starts (early return).
-- Non-command `/`-starters (`/etc/hosts …`) pass through unchanged (regex `^\/[a-z][\w-]*(\s|$)`); commands with attachments pass through (can't dispatch a command with an image).
-- Known limits: whole-room commands target the DEFAULT profile session — if none exists, posts guidance instead. CLI-only commands that `command.dispatch` rejects come back as an error entry. If upstream merges #94063 (slash rejection guard) before #91334 (composer reuse), the guard lands in the same function and will block dispatch until allow-listed — the watchdog will ALERT only if the anchor disappears, not if the guard wins.
+- `/cmd @bot ...` → dispatch per mentioned member's session, one result entry per target. Mention tokens are stripped from the arg. Session lookup is thread-scoped (upstream d631ad5f5c): `groupSessionKey(thread, member)` first, bare-`groupMemberKey` fallback only for rooms that never migrated (mirrors stopGroupThread).
+- The command text is appended as the user's message; the thread is minted; no round drive is started (early return). Any fallback drive goes through the QUEUE OWNER (`queueGroupChatDrive`), never the round driver directly — a direct call would bypass per-room serialization and re-create the overlapping-submit bug #111283 fixed.
+- Non-command `/`-starters (`/etc/hosts …`) pass through unchanged (regex `^\/[a-z][\w-]*(\s|$)`). Commands WITH attachments keep the upstream rejection (toast) — since #111283's era the shipped function opens with `rejectGroupSlashCommand`, which the patcher neutralizes ONLY for attachment-free command text (attachments checked first so the guard's toast side effect never fires on intercepted sends).
+- Known limits: whole-room commands target the DEFAULT profile session — if none exists, posts guidance instead. CLI-only commands that `command.dispatch` rejects come back as an error entry. History: upstream #94063 (rejection guard, landed as 6fa8518b44) DID win the race and made the patch dead-on-arrival for command text; the 2026-09-18 re-derive intercepts it at the call site as described above.
 - Bundle backup: `index-*.js.pre-group-slash.bak` beside the bundle.
 - Test: restart the desktop app, then in a group room run `/status`, `/rollback`, `/model @<bot>`, `/steer do x @<bot>`. Results appear as `Slash` entries.
 
