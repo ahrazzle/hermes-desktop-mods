@@ -112,6 +112,6 @@ POST-UPDATE RE-DERIVATION LOG (2026-09-18, post-#111283 bundle index-kkaHszuX.js
   toast semantics incl. with-attachments rejection preserved, /etc/hosts pass-through,
   thread-scoped + bare-key + scoped-miss session cases, default-profile path, 9999 literals,
   __GSPATCH x1); 3 negative shape tests ALERT rc=3 with file byte-UNCHANGED. Details:
-  mozi-receipt.md.
+  patcher-rewrite-receipt.md.
 
 SOP: desktop-overrides.md (rev 6 + 2026-09-18 anchor update; this repo)

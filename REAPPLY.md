@@ -194,7 +194,7 @@ absence after the first watchdog run means all three are healthy.
   (byte-identical), node --check parses every patched variant, 27-case node
   behavior harness on the extracted patched functions, negative tests
   (shape-shift / duplicated site / pre-#111283 tail) all exit 3 without
-  writing. See mozi-receipt.md.
+  writing. See patcher-rewrite-receipt.md.
 - ACTION OUTSTANDING (deploy stage, not this branch): copy the two new
   patchers to ~/.hermes/scripts, run the watchdog once against the live
   bundle (patches + re-signs), confirm ALERT file absent. Until then the
